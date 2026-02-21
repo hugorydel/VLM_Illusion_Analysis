@@ -5,8 +5,8 @@ plot_results.py - Visualise psychometric curves and PSE drift (Phase 3)
 Produces two figures:
 
   Figure 1 — Psychometric curves (one per illusion strength)
-      x-axis: true physical difference (right − left line length)
-      y-axis: proportion of "Right" responses
+      x-axis: true physical difference (top − bottom line length)
+      y-axis: proportion of "Top" responses
       Each curve is a fitted cumulative Gaussian. The dashed vertical line
       at x=0 marks physical equality; the PSE is where each curve crosses 0.5.
 
@@ -76,7 +76,7 @@ def plot_psychometric_curves(
         # Scatter: observed proportions
         ax.scatter(
             subset["true_diff"],
-            subset["prop_right"],
+            subset["prop_top"],
             color=color,
             s=40,
             zorder=3,
@@ -107,8 +107,8 @@ def plot_psychometric_curves(
     )
     ax.axhline(0.5, color="grey", linestyle=":", linewidth=0.8, alpha=0.5)
 
-    ax.set_xlabel("True physical difference  (right − left)", fontsize=12)
-    ax.set_ylabel("P(respond 'Right')", fontsize=12)
+    ax.set_xlabel("True physical difference  (top − bottom)", fontsize=12)
+    ax.set_ylabel("P(respond 'Top')", fontsize=12)
     ax.set_title("Psychometric Functions — GPT-4o on Müller-Lyer Illusion", fontsize=13)
     ax.set_ylim(-0.05, 1.05)
     ax.legend(fontsize=9, loc="upper left")

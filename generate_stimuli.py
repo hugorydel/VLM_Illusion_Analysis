@@ -4,12 +4,7 @@ generate_stimuli.py - Generate Müller-Lyer illusion stimulus grid
 
 Generates a 2D grid of PNG images varying across:
   - illusion_strength: controls the angle/size of the arrow fins (0 = no illusion)
-  - difference:        physical length difference between the two lines (right - left)
-
-Grid defaults:
-  - illusion_strength: [0, 25, 50, 75, 100]
-  - difference:        [-0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3]
-  → 35 images total
+  - difference:        physical length difference between the two lines (top - bottom)
 
 Filenames encode parameters for downstream parsing:
     MullerLyer_str050_diff+0.20.png

@@ -1,6 +1,6 @@
-vlm_prompt = """Look at the two horizontal lines in this image.
+vlm_prompt = """Look at the two red horizontal lines in this image.
 
-Which line is longer — the left one or the right one?
+Which red line looks longer — the TOP one or the BOTTOM one?
 
-Answer with only "Left" or "Right".
+Answer with only "Top" or "Bottom".
 """

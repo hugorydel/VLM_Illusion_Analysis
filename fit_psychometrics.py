@@ -3,18 +3,18 @@
 fit_psychometrics.py - Fit sigmoid psychometric functions and extract PSE (Phase 3)
 
 Reads raw_responses.jsonl, groups responses by illusion_strength, and for each
-strength level fits a cumulative Gaussian (sigmoid) to the proportion of "Right"
+strength level fits a cumulative Gaussian (sigmoid) to the proportion of "Top"
 responses as a function of true physical difference.
 
 The Point of Subjective Equality (PSE) is the x-value where the fitted curve
 crosses 50% — i.e., the physical difference needed for the model to be indifferent.
   PSE = 0    → no bias
-  PSE > 0    → model perceives right as shorter (needs extra length to seem equal)
-  PSE < 0    → model perceives right as longer
+  PSE > 0    → model perceives top as shorter (needs extra length to seem equal)
+  PSE < 0    → model perceives top as longer
 
 Outputs:
     results/pse_summary.csv      — one row per illusion strength level
-    results/psychometric_data.csv — proportion-right per (strength, diff) cell
+    results/psychometric_data.csv — proportion-top per (strength, diff) cell
 
 Usage:
     python fit_psychometrics.py [--results PATH] [--output-dir PATH]
@@ -42,15 +42,15 @@ def cumulative_gaussian(x: np.ndarray, mu: float, sigma: float) -> np.ndarray:
     """
     Cumulative Gaussian (Φ) — the standard psychometric function.
 
-    P("Right" | x) = Φ((x − μ) / σ)
+    P("Top" | x) = Φ((x − μ) / σ)
 
     Args:
-        x:     True physical difference (right − left line length).
+        x:     True physical difference (top − bottom line length).
         mu:    PSE — the x-value at which P = 0.5.
         sigma: Slope parameter (JND / √2); smaller = steeper curve.
 
     Returns:
-        Probability of responding "Right".
+        Probability of responding "Top".
     """
     return 0.5 * (1 + erf((x - mu) / (sigma * np.sqrt(2))))
 
@@ -76,7 +76,7 @@ def load_responses(jsonl_path: Path) -> pd.DataFrame:
         raise ValueError(f"No records found in {jsonl_path}")
 
     df = pd.DataFrame(records)
-    df["responded_right"] = (df["response"] == "Right").astype(int)
+    df["responded_top"] = (df["response"] == "Top").astype(int)
     return df
 
 
@@ -87,20 +87,20 @@ def load_responses(jsonl_path: Path) -> pd.DataFrame:
 
 def aggregate_psychometric_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Compute proportion of "Right" responses per (illusion_strength, true_diff) cell.
+    Compute proportion of "Top" responses per (illusion_strength, true_diff) cell.
 
     Returns a DataFrame with columns:
-        illusion_strength, true_diff, n_trials, n_right, prop_right
+        illusion_strength, true_diff, n_trials, n_top, prop_top
     """
     grouped = (
         df.groupby(["illusion_strength", "true_diff"])
         .agg(
-            n_trials=("responded_right", "count"),
-            n_right=("responded_right", "sum"),
+            n_trials=("responded_top", "count"),
+            n_top=("responded_top", "sum"),
         )
         .reset_index()
     )
-    grouped["prop_right"] = grouped["n_right"] / grouped["n_trials"]
+    grouped["prop_top"] = grouped["n_top"] / grouped["n_trials"]
     return grouped.sort_values(["illusion_strength", "true_diff"]).reset_index(
         drop=True
     )
@@ -113,14 +113,14 @@ def aggregate_psychometric_data(df: pd.DataFrame) -> pd.DataFrame:
 
 def fit_pse(
     diff_values: np.ndarray,
-    prop_right: np.ndarray,
+    prop_top: np.ndarray,
 ) -> dict:
     """
     Fit a cumulative Gaussian to the psychometric data and return PSE + slope.
 
     Args:
         diff_values: Array of true physical differences (x-axis).
-        prop_right:  Corresponding proportions of "Right" responses (y-axis).
+        prop_top:  Corresponding proportions of "Top" responses (y-axis).
 
     Returns:
         Dict with keys: pse, sigma, fit_success, note.
@@ -131,7 +131,7 @@ def fit_pse(
             popt, pcov = curve_fit(
                 cumulative_gaussian,
                 diff_values,
-                prop_right,
+                prop_top,
                 p0=[0.0, 0.1],  # initial guess: unbiased, moderate slope
                 bounds=([-1.0, 0.001], [1.0, 2.0]),
                 maxfev=10_000,
@@ -218,7 +218,7 @@ def main():
         subset = psych_data[psych_data["illusion_strength"] == strength]
         result = fit_pse(
             subset["true_diff"].values,
-            subset["prop_right"].values,
+            subset["prop_top"].values,
         )
         pse_rows.append({"illusion_strength": strength, **result})
 
@@ -244,10 +244,10 @@ def main():
     print("\nInterpretation:")
     print("  PSE = 0   → no systematic bias at this illusion strength")
     print(
-        "  PSE > 0   → model perceives right line as shorter (illusion biases toward left)"
+        "  PSE > 0   → model perceives top line as shorter (illusion biases toward bottom)"
     )
     print(
-        "  PSE < 0   → model perceives right line as longer  (illusion biases toward right)"
+        "  PSE < 0   → model perceives top line as longer  (illusion biases toward top)"
     )
     print("\nCore finding: does PSE shift systematically with illusion strength?")
 

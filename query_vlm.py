@@ -3,13 +3,13 @@
 query_vlm.py - Query GPT-4o on Müller-Lyer stimulus grid (Phase 2)
 
 Sends each stimulus image to the OpenAI Vision API as a strict forced-choice
-question ("Which line looks longer — Left or Right?") and logs results to JSONL.
+question ("Which line looks longer — Bottom or Top?") and logs results to JSONL.
 
 Each output record contains:
     image_id         : stem of the image filename
     illusion_strength: parsed from filename (0–100)
-    true_diff        : parsed from filename (right − left physical length)
-    response         : "Left" or "Right" (model's answer)
+    true_diff        : parsed from filename (top − bottom physical length)
+    response         : "Bottom" or "Top" (model's answer)
     correct          : 1/0/null — whether response matches physical truth
                        (null when true_diff == 0, i.e. lines are equal)
 
@@ -88,15 +88,15 @@ def compute_correct(response: str, true_diff: float) -> Optional[int]:
     """
     Determine whether the model's response matches physical ground truth.
 
-    Convention: true_diff = right_length − left_length.
-      true_diff > 0 → right is longer → correct answer is "Right"
-      true_diff < 0 → left  is longer → correct answer is "Left"
-      true_diff = 0 → lines are equal → no correct answer (returns None)
+    Convention: true_diff = top_length − bottom_length.
+      true_diff > 0 → top is longer    → correct answer is "Top"
+      true_diff < 0 → bottom is longer → correct answer is "Bottom"
+      true_diff = 0 → lines are equal  → no correct answer (returns None)
     """
     if true_diff > 0:
-        return 1 if response == "Right" else 0
+        return 1 if response == "Top" else 0
     elif true_diff < 0:
-        return 1 if response == "Left" else 0
+        return 1 if response == "Bottom" else 0
     else:
         return None
 
@@ -261,6 +261,8 @@ class VLMQuerier:
                     ],
                     text={"format": RESPONSE_SCHEMA},
                     max_output_tokens=500,
+                    reasoning={"effort": "none"},
+                    temperature=1,
                 )
 
                 result = json.loads(response.output_text)

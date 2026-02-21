@@ -8,8 +8,8 @@ response_schema = {
             "image_id": {"type": "string"},
             "response": {
                 "type": "string",
-                "enum": ["Left", "Right"],
-                "description": "Which line looks longer: the left or the right.",
+                "enum": ["Top", "Bottom"],
+                "description": "Which red line looks longer: top or bottom.",
             },
         },
         "required": ["image_id", "response"],
