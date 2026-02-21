@@ -85,30 +85,36 @@ def make_filename(strength: float, diff: float) -> str:
     """
     Encode illusion parameters into a filename for downstream parsing.
 
-    Strength is stored as a signed integer string (e.g. -049, +025).
+    Sign and magnitude are handled separately so zero-padding is always
+    applied to the magnitude only, giving consistent 3-digit fields:
+        strength -49 → '-049'   strength +7 → '+007'
+
     Diff is stored at 5 decimal places to preserve the full precision of
     the IllusionGameValidation parameter set.
 
     Examples:
-        make_filename( 50,   0.2)     → 'ML_str+050_diff+0.20000.png'
-        make_filename(-49,  -0.3587)  → 'ML_str-049_diff-0.35870.png'
+        make_filename( 50,   0.2)    → 'ML_str+050_diff+0.20000.png'
+        make_filename(-49,  -0.3587) → 'ML_str-049_diff-0.35870.png'
     """
-    str_sign = "+" if strength >= 0 else ""
-    diff_sign = "+" if diff >= 0 else ""
-    return f"ML_str{str_sign}{int(strength):03d}_diff{diff_sign}{diff:.5f}.png"
+    s_sign = "-" if strength < 0 else "+"
+    d_sign = "-" if diff < 0 else "+"
+    return f"ML_str{s_sign}{abs(int(strength)):03d}" f"_diff{d_sign}{abs(diff):.5f}.png"
 
 
 def parse_filename(stem: str) -> tuple[float, float]:
     """
     Reverse of make_filename — extract (illusion_strength, true_diff) from a stem.
 
+    Strips the known 'str' / 'diff' prefixes by position rather than using
+    str.replace(), so the logic is explicit and unambiguous.
+
     Example:
         parse_filename('ML_str+050_diff+0.20000') → (50.0, 0.2)
         parse_filename('ML_str-049_diff-0.35870') → (-49.0, -0.3587)
     """
-    parts = stem.split("_")
-    strength = float(parts[1].replace("str", ""))
-    diff = float(parts[2].replace("diff", ""))
+    _, str_part, diff_part = stem.split("_")
+    strength = float(str_part[3:])  # strip leading 'str'
+    diff = float(diff_part[4:])  # strip leading 'diff'
     return strength, diff
 
 

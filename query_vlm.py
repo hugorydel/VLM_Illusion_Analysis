@@ -242,56 +242,58 @@ class VLMQuerier:
         Raises:
             Exception if all retries are exhausted.
         """
-        delay = self.initial_retry_delay
-
         for attempt in range(self.max_retries):
             try:
-                completion = await self.client.chat.completions.create(
+                response = await self.client.responses.create(
                     model=self.model,
-                    temperature=0,
-                    max_tokens=50,
-                    response_format=RESPONSE_SCHEMA,
-                    messages=[
+                    input=[
                         {
                             "role": "user",
                             "content": [
+                                {"type": "input_text", "text": VLM_PROMPT},
                                 {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{image_base64}",
-                                        "detail": "high",
-                                    },
-                                },
-                                {
-                                    "type": "text",
-                                    "text": VLM_PROMPT,
+                                    "type": "input_image",
+                                    "image_url": f"data:image/jpeg;base64,{image_base64}",
                                 },
                             ],
                         }
                     ],
+                    text={"format": RESPONSE_SCHEMA},
+                    max_output_tokens=50,
                 )
 
-                raw = completion.choices[0].message.content
-                parsed = json.loads(raw)
+                result = json.loads(response.output_text)
 
-                # Parse ground-truth parameters from filename
                 strength, true_diff = parse_image_id(image_id)
-                correct = compute_correct(parsed["response"], true_diff)
+                correct = compute_correct(result["response"], true_diff)
 
                 return {
                     "image_id": image_id,
                     "illusion_strength": strength,
                     "true_diff": true_diff,
-                    "response": parsed["response"],
+                    "response": result["response"],
                     "correct": correct,
                 }
 
             except Exception as e:
+                error_msg = str(e)
+                is_rate_limit = "rate_limit" in error_msg.lower() or "429" in error_msg
+
                 if attempt < self.max_retries - 1:
+                    delay = self.initial_retry_delay * (2**attempt)
+                    if is_rate_limit:
+                        delay *= 2
+
+                    safe_error = error_msg.encode("ascii", "backslashreplace").decode(
+                        "ascii"
+                    )
+                    print(
+                        f"  Retry {attempt + 1}/{self.max_retries} for {image_id} "
+                        f"(waiting {delay:.1f}s): {safe_error[:100]}"
+                    )
                     await asyncio.sleep(delay)
-                    delay *= 2  # exponential backoff
                 else:
-                    raise
+                    raise Exception(f"All retries exhausted: {error_msg}")
 
 
 # ============================================================================
