@@ -234,7 +234,7 @@ class VLMQuerier:
 
     async def query_image(self, image_id: str, image_base64: str) -> Dict[str, Any]:
         """
-        Query GPT-4o on a single stimulus with exponential backoff retry.
+        Query OpeAI API on a single stimulus with exponential backoff retry.
 
         Returns:
             Dict with keys: image_id, illusion_strength, true_diff, response, correct.
