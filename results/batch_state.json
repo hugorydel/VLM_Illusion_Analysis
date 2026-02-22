@@ -1,13 +1,38 @@
 {
-  "submitted_at": "2026-02-22T20:09:16.853131+00:00",
+  "submitted_at": "2026-02-22T23:07:25.592184+00:00",
   "n_participants_target": 100,
   "output_dir": "results\\synthetic_participants",
   "model": "gpt-5.2",
   "batches": [
     {
-      "batch_id": "batch_699b626b91cc8190a2c449689cb0041d",
-      "input_file_id": "file-9YutV8B6xVvKRRR8JvNjfc",
+      "batch_id": "batch_699b8c2d4d4881908b3d99a6e3bf8748",
+      "input_file_id": "file-Ncp9mZuWPRmRrposMBJuUj",
       "participant_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
         26,
         27,
         28,
@@ -84,9 +109,8 @@
         99,
         100
       ],
-      "status": "completed",
-      "output_file_id": "file-95WEEbrGbr9edsMoW5J4jJ"
+      "status": "validating",
+      "output_file_id": null
     }
-  ],
-  "status": "downloaded"
+  ]
 }

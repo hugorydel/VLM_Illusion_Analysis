@@ -116,41 +116,36 @@ _RESPONSE_FORMAT = {
 }
 
 # ============================================================================
-# GAP-FILLING: which participant IDs are missing?
+# GAP-FILLING: which (participant, image) pairs are missing?
 # ============================================================================
 
 
-def existing_participant_ids(output_dir: Path) -> set[int]:
+def get_missing_requests(
+    output_dir: Path, n_participants: int, all_images: list[str]
+) -> dict[int, list[str]]:
     """
-    Scan output_dir for participant_*.jsonl files and return the set of their
-    numeric IDs.  Only files that are non-empty are counted as complete.
+    Scan output_dir and return {participant_id: [missing_image_ids]}.
 
-    Examples:
-        participant_01.jsonl  → 1
-        participant_100.jsonl → 100
+    Checks inside each file to find which images are already recorded,
+    so adding new stimuli to the grid is handled automatically.
+    Only participants with at least one missing image are included.
     """
-    ids: set[int] = set()
-    if not output_dir.exists():
-        return ids
-    for path in output_dir.glob("participant_*.jsonl"):
-        if path.stat().st_size == 0:
-            continue  # empty file = incomplete run, treat as missing
-        stem = path.stem  # e.g. 'participant_03'
-        try:
-            ids.add(int(stem.split("_")[-1]))
-        except ValueError:
-            continue
-    return ids
-
-
-def missing_participant_ids(output_dir: Path, n_participants: int) -> list[int]:
-    """
-    Return the sorted list of participant IDs in [1, n_participants] that do
-    not yet have a non-empty file in output_dir.
-    """
-    target = set(range(1, n_participants + 1))
-    have = existing_participant_ids(output_dir)
-    return sorted(target - have)
+    requests: dict[int, list[str]] = {}
+    for pid in range(1, n_participants + 1):
+        path = output_dir / f"participant_{pid:02d}.jsonl"
+        done: set[str] = set()
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            done.add(json.loads(line)["image_id"])
+                        except Exception:
+                            pass
+        missing = [img for img in all_images if img not in done]
+        if missing:
+            requests[pid] = missing
+    return requests
 
 
 # ============================================================================
@@ -210,8 +205,7 @@ def build_single_request(
 
 
 def prepare_batch_files(
-    missing_ids: list[int],
-    image_ids: list[str],
+    requests_to_make: dict[int, list[str]],
     image_dir: Path,
     batch_dir: Path,
     model: str,
@@ -223,29 +217,34 @@ def prepare_batch_files(
     Build one or more batch input JSONLs, splitting at participant boundaries
     whenever the running size would exceed MAX_BATCH_BYTES.
 
-    Images are base64-encoded once and reused across all participants.
+    Accepts a per-participant dict of missing image IDs so that participants
+    with partially-complete files only contribute their outstanding images.
     Returns a list of (path, participant_ids) tuples, one per sub-batch.
     """
     batch_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    total = len(missing_ids) * len(image_ids)
+    total_requests = sum(len(imgs) for imgs in requests_to_make.values())
 
     print(
-        f"\nPreparing batch JSONL(s): {len(missing_ids)} participants x "
-        f"{len(image_ids)} images = {total} requests"
+        f"\nPreparing batch JSONL(s): {total_requests} total requests across "
+        f"{len(requests_to_make)} participants"
     )
     print(f"  Size limit per file : {MAX_BATCH_BYTES // 1024 // 1024} MB")
 
-    # Encode all images once — reused for every participant
+    # Encode only the unique images actually needed
+    needed_images: set[str] = set()
+    for imgs in requests_to_make.values():
+        needed_images.update(imgs)
+
     print("  Pre-encoding images...")
     encoded: dict[str, str] = {}
-    for image_id in image_ids:
+    for image_id in needed_images:
         encoded[image_id] = preprocess_image(
             image_dir / f"{image_id}.png",
             max_dimension=max_dimension,
             jpeg_quality=jpeg_quality,
         )
-    print(f"  {len(encoded)} images encoded")
+    print(f"  {len(encoded)} unique images encoded")
 
     sub_batches: list[tuple[Path, list[int]]] = []
     file_index = 1
@@ -263,13 +262,13 @@ def prepare_batch_files(
 
     _open_new()
 
-    for pid in missing_ids:
+    for pid, img_list in requests_to_make.items():
         pid_lines = [
             json.dumps(
                 build_single_request(pid, img_id, encoded[img_id], model, temperature)
             )
             + "\n"
-            for img_id in image_ids
+            for img_id in img_list
         ]
         pid_bytes = sum(len(l.encode()) for l in pid_lines)
 
@@ -340,23 +339,22 @@ def cmd_submit(args) -> None:
         print(f"Error: {e}")
         sys.exit(1)
 
-    # -- Compute missing participant IDs --------------------------------------
-    missing = missing_participant_ids(output_dir, args.n_participants)
-    have = existing_participant_ids(output_dir)
+    # -- Compute missing (participant, image) pairs ---------------------------
+    requests_to_make = get_missing_requests(output_dir, args.n_participants, all_images)
+    total_requests = sum(len(imgs) for imgs in requests_to_make.values())
 
     print("\n" + "=" * 60)
     print("BATCH SUBMISSION PLAN")
     print("=" * 60)
-    print(f"  Target participants : {args.n_participants}")
-    print(f"  Already complete    : {len(have)}  {sorted(have) if have else '(none)'}")
-    print(f"  To submit           : {len(missing)}  {missing}")
-    print(f"  Images per part.    : {len(all_images)}")
-    print(f"  Total requests      : {len(missing) * len(all_images)}")
-    print(f"  Model               : {args.model}")
-    print(f"  Temperature         : {args.temperature}")
+    print(f"  Target participants         : {args.n_participants}")
+    print(f"  Participants needing updates: {len(requests_to_make)}")
+    print(f"  Total missing requests      : {total_requests}")
+    print(f"  Images available            : {len(all_images)}")
+    print(f"  Model                       : {args.model}")
+    print(f"  Temperature                 : {args.temperature}")
     print("=" * 60)
 
-    if not missing:
+    if not requests_to_make:
         print("\n[OK] All participants already complete -- nothing to submit.")
         return
 
@@ -366,8 +364,7 @@ def cmd_submit(args) -> None:
 
     # -- Build batch JSONL(s) — auto-split if > 190 MB -----------------------
     sub_batch_files = prepare_batch_files(
-        missing_ids=missing,
-        image_ids=all_images,
+        requests_to_make=requests_to_make,
         image_dir=image_dir,
         batch_dir=batch_dir,
         model=args.model,
@@ -591,18 +588,38 @@ def cmd_download(args) -> None:
         total_ok += n_ok
         total_fail += n_fail
 
-    # -- Write participant files ----------------------------------------------
+    # -- Write participant files (merge with existing to avoid overwriting) ---
     print(f"\nWriting participant files to {output_dir}/")
     for pid in sorted(records_by_participant):
         out_path = output_dir / f"participant_{pid:02d}.jsonl"
-        records = sorted(
-            records_by_participant[pid],
+
+        # Load existing records keyed by image_id to deduplicate
+        existing: dict[str, dict] = {}
+        if out_path.exists():
+            with open(out_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            rec = json.loads(line)
+                            existing[rec["image_id"]] = rec
+                        except Exception:
+                            pass
+
+        # Merge: new records overwrite old ones for the same image_id
+        for rec in records_by_participant[pid]:
+            existing[rec["image_id"]] = rec
+
+        all_records = sorted(
+            existing.values(),
             key=lambda r: (r["illusion_strength"], r["true_diff"]),
         )
-        with open(out_path, "w") as f:
-            for rec in records:
+        with open(out_path, "w", encoding="utf-8") as f:
+            for rec in all_records:
                 f.write(json.dumps(rec) + "\n")
-        print(f"  participant_{pid:02d}.jsonl  ({len(records)} responses)")
+        n_new = len(records_by_participant[pid])
+        print(
+            f"  participant_{pid:02d}.jsonl  ({n_new} new -> {len(all_records)} total)"
+        )
 
     print("\n" + "=" * 60)
     print("DOWNLOAD COMPLETE")

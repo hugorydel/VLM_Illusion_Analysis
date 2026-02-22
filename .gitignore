@@ -3,3 +3,5 @@
 /__pycache__/
 ../__pycache__/
 /results/batch_staging/
+results/batch_staging/*.jsonl
+batch_input_*.jsonl
