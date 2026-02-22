@@ -46,14 +46,14 @@ import numpy as np
 import pandas as pd
 from scipy.special import erf
 
-from generate_synthetic_data.model_parameters import OPENAI_MODEL
+# from model_parameters import OPENAI_MODEL
 
 # ============================================================================
 # CONSTANTS
 # ============================================================================
 
 N_DIFFICULTY_BINS = 6  # number of |diff| bins for Figure 1
-MODEL_NAME = OPENAI_MODEL
+MODEL_NAME = "gpt-5.2"
 
 # Verbal labels for difficulty bins, ordered hard → easy (matches bin index 0 → N-1)
 DIFFICULTY_LABELS = [
@@ -242,7 +242,7 @@ def plot_error_by_difficulty(
         label="Chance (50% error)",
     )
 
-    ax.set_xlabel("Illusion strength  (negative = congruent)", fontsize=12)
+    ax.set_xlabel("Illusion strength", fontsize=12)
     ax.set_ylabel("Probability of error", fontsize=12)
     ax.set_title(
         f"Error Rate vs. Illusion Strength — {model_name}\n",

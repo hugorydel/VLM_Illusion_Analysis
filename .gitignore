@@ -1,4 +1,5 @@
 /generate_synthetic_data/__pycache__/
 /results/errors/
-./__pycache__/
+/__pycache__/
+../__pycache__/
 /results/batch_staging/
