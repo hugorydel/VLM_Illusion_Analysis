@@ -80,7 +80,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from model_parameters import MAX_BATCH_BYTES, MAX_TOKENS, OPENAI_MODEL, TEMPERATURE
+from model_parameters import (
+    MAX_BATCH_BYTES,
+    MAX_DIMENSIONS,
+    MAX_TOKENS,
+    OPENAI_MODEL,
+    TEMPERATURE,
+)
 from openai import OpenAI
 from PIL import Image
 from query_vlm import compute_correct, discover_images, parse_image_id, preprocess_image
@@ -183,7 +189,7 @@ def build_single_request(
         "body": {
             "model": model,
             "temperature": temperature,
-            "max_tokens": MAX_TOKENS,
+            "max_completion_tokens": MAX_TOKENS,
             "response_format": _RESPONSE_FORMAT,
             "messages": [
                 {
@@ -680,8 +686,8 @@ def main():
     p_submit.add_argument(
         "--max-dimension",
         type=int,
-        default=1024,
-        help="Max image dimension before resizing (default: 1024)",
+        default=MAX_DIMENSIONS,
+        help="Max image dimension before resizing",
     )
     p_submit.add_argument(
         "--jpeg-quality",

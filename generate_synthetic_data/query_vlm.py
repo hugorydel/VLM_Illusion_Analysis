@@ -57,7 +57,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import aiofiles
-from model_parameters import MAX_TOKENS, N_PARTICIPANTS, OPENAI_MODEL, TEMPERATURE
+from model_parameters import (
+    MAX_DIMENSIONS,
+    MAX_TOKENS,
+    N_PARTICIPANTS,
+    OPENAI_MODEL,
+    TEMPERATURE,
+)
 from openai import AsyncOpenAI
 from PIL import Image
 from response_schema import response_schema
@@ -611,8 +617,8 @@ def main():
     parser.add_argument(
         "--max-dimension",
         type=int,
-        default=1024,
-        help="Max image dimension before resizing (default: 1024)",
+        default=MAX_DIMENSIONS,
+        help="Max image dimension before resizing",
     )
     parser.add_argument(
         "--jpeg-quality",
